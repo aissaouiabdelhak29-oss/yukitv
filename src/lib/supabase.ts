@@ -1,11 +1,7 @@
-import { Episode, Genre, Media, Server } from '../types';
+import type { Episode, Genre, Media, Server } from '../types';
 
-const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL as string;
-const SUPABASE_KEY = (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.warn('Supabase environment variables are missing.');
-}
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '');
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 type DbContent = {
   id: number; title: string; slug: string; description: string | null; type: 'movie' | 'series';
