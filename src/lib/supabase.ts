@@ -23,18 +23,10 @@ const genreArabic: Record<string, string> = {
 const fallbackPoster = (id: number) => `https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=600&fit=crop&sig=${id}`;
 const fallbackBackdrop = (id: number) => `https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1280&h=720&fit=crop&sig=${id}`;
 
-// المجلد المحلي اللي فيه الصور (public/poster) — كيتخدم من Vite مباشرة كـ "/poster/..."
-const LOCAL_IMAGE_DIR = 'poster';
-
-function imageUrl(value: string | null | undefined, fallback: string) {
-  if (!value || value === 'default-poster.jpg' || value === 'default-backdrop.jpg') return fallback;
-
-  // رابط كامل (مثلاً صورة مرفوعة على Supabase Storage ولا أي CDN) → نستعملوه كيفما هو
-  if (/^https?:\/\//i.test(value)) return value;
-
-  // غير اسم الملف (أو مسار نسبي) مخزّن فالقاعدة → نبنيو المسار انطلاقاً من public/poster
-  const clean = value.replace(/^\/+/, '').replace(new RegExp(`^${LOCAL_IMAGE_DIR}/`), '');
-  return `/${LOCAL_IMAGE_DIR}/${clean}`;
+function imageUrl(poster: string | null | undefined): string {
+  if (!poster) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(poster)) return poster;
+  return `/poster/${poster.replace(/^\/+/, '')}`;
 }
 
 async function rest<T>(table: string, query: string): Promise<T> {
