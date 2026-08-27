@@ -7,7 +7,7 @@
 
 export const API_CONFIG = {
   // رابط الـ API - يمكن تغييره بسهولة دون إعادة بناء التطبيق
-  BASE_URL: (import.meta as any).env?.VITE_SUPABASE_URL || 'https://euntkhkadunekmlydyes.supabase.co',
+  BASE_URL: (import.meta as any).env?.VITE_SUPABASE_URL || 'https://euntkhkadunekmlydyes.supabase.co/rest/v1/',
   
   // نسخة الـ API
   VERSION: 'v1',
