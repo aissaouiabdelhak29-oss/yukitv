@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { allMedia } from '../data/mockData';
+import { useCatalog } from '../lib/useCatalog';
 import { Media } from '../types';
 import {
   FiEdit2, FiLogOut, FiHeart, FiClock, FiStar,
@@ -233,6 +233,7 @@ const SettingRow: React.FC<{
 // ============ Profile Page ============
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onMediaClick }) => {
   const { user, isAuthenticated, logout, watchProgress, favorites, ratings, updateProfile } = useStore();
+  const { media: allMedia } = useCatalog();
   const [editMode, setEditMode] = useState(false);
   const [newName, setNewName] = useState(user?.name ?? '');
 

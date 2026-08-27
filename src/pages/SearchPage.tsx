@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Media } from '../types';
-import { allMedia } from '../data/mockData';
+import { useCatalog } from '../lib/useCatalog';
 import { MediaCard } from '../components/ui/MediaCard';
 import { IoSearch, IoClose } from 'react-icons/io5';
 import { FiClock, FiTrendingUp } from 'react-icons/fi';
@@ -31,6 +31,7 @@ function removeSearch(query: string) {
 const trending = ['فارس الشفق', 'عالم الأسرار', 'العالم الجديد', 'ظلال الأبدية', 'الخط الأحمر'];
 
 export const SearchPage: React.FC<SearchPageProps> = ({ onMediaClick }) => {
+  const { media: allMedia } = useCatalog();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Media[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches());

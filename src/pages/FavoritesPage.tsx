@@ -1,6 +1,6 @@
 import React from 'react';
 import { Media } from '../types';
-import { allMedia } from '../data/mockData';
+import { useCatalog } from '../lib/useCatalog';
 import { useStore } from '../store/useStore';
 import { MediaCard } from '../components/ui/MediaCard';
 import { FiHeart } from 'react-icons/fi';
@@ -12,6 +12,7 @@ interface FavoritesPageProps {
 
 export const FavoritesPage: React.FC<FavoritesPageProps> = ({ onMediaClick, onTabChange }) => {
   const { favorites, isAuthenticated } = useStore();
+  const { media: allMedia } = useCatalog();
 
   const favoriteItems = allMedia.filter(m => favorites.includes(m.id));
   const movies = favoriteItems.filter(m => m.type === 'movie');

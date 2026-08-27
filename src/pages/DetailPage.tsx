@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Media, Episode } from '../types';
 import { useStore } from '../store/useStore';
-import { allMedia } from '../data/mockData';
+import { getMediaDetails } from '../lib/supabase';
+import { useCatalog } from '../lib/useCatalog';
 import { MediaCard } from '../components/ui/MediaCard';
 import { StarRating } from '../components/ui/StarRating';
 import {
@@ -35,28 +36,32 @@ export const DetailPage: React.FC<DetailPageProps> = ({
     toggleLike, user
   } = useStore();
 
+  const { media: allMedia } = useCatalog();
   const [selectedSeason, setSelectedSeason] = useState(0);
+  const [fullMedia, setFullMedia] = useState<Media>(media);
   const [commentText, setCommentText] = useState('');
-  const [userRating, setUserRating] = useState(ratings[media.id] || 0);
+  const [userRating, setUserRating] = useState(ratings[fullMedia.id] || 0);
   const [showAllDesc, setShowAllDesc] = useState(false);
   const [editingComment, setEditingComment] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'episodes' | 'comments'>('details');
   const [backdropLoaded, setBackdropLoaded] = useState(false);
 
-  const isFav = isFavorite(media.id);
-  const comments = getComments(media.id);
+  const isFav = isFavorite(fullMedia.id);
+  const comments = getComments(fullMedia.id);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [media.id]);
+    setFullMedia(media);
+    getMediaDetails(media).then(setFullMedia).catch(err => console.error('Failed to load media details', err));
+  }, [media]);
 
   const handleRating = (r: number) => {
     if (!isAuthenticated) {
       toast.error('يجب تسجيل الدخول أولاً');
       return;
     }
-    setRating(media.id, r);
+    setRating(fullMedia.id, r);
     setUserRating(r);
     toast.success(`تم تقييمك بـ ${r} ${r === 1 ? 'نجمة' : 'نجوم'} ⭐`);
   };
@@ -66,7 +71,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({
       toast.error('يجب تسجيل الدخول أولاً');
       return;
     }
-    toggleFavorite(media.id);
+    toggleFavorite(fullMedia.id);
     toast.success(isFav ? 'تمت الإزالة من المفضلة' : 'تمت الإضافة للمفضلة ❤️');
   };
 
@@ -76,7 +81,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({
       return;
     }
     if (!commentText.trim()) return;
-    addComment(media.id, commentText.trim(), userRating || undefined);
+    addComment(fullMedia.id, commentText.trim(), userRating || undefined);
     setCommentText('');
     toast.success('تم نشر التعليق 💬');
   };
@@ -95,15 +100,15 @@ export const DetailPage: React.FC<DetailPageProps> = ({
   };
 
   const similar = allMedia
-    .filter(m => m.id !== media.id && m.type === media.type)
-    .filter(m => m.genres.some(g => media.genres.map(mg => mg.id).includes(g.id)))
+    .filter(m => m.id !== media.id && m.type === fullMedia.type)
+    .filter(m => m.genres.some(g => fullMedia.genres.map(mg => mg.id).includes(g.id)))
     .slice(0, 12);
 
-  const season = media.seasons?.[selectedSeason];
+  const season = fullMedia.seasons?.[selectedSeason];
 
   const tabs: { id: 'details' | 'episodes' | 'comments'; label: string }[] = [
     { id: 'details', label: 'التفاصيل' },
-    ...(media.seasons ? [{ id: 'episodes' as const, label: 'الحلقات' }] : []),
+    ...(fullMedia.seasons ? [{ id: 'episodes' as const, label: 'الحلقات' }] : []),
     { id: 'comments', label: `تعليقات (${comments.length})` },
   ];
 
@@ -113,8 +118,8 @@ export const DetailPage: React.FC<DetailPageProps> = ({
       <div className="relative overflow-hidden" style={{ height: '55vw', maxHeight: 260 }}>
         {!backdropLoaded && <div className="absolute inset-0 skeleton" />}
         <img
-          src={media.backdrop}
-          alt={media.title}
+          src={fullMedia.backdrop}
+          alt={fullMedia.title}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${backdropLoaded ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => setBackdropLoaded(true)}
         />
@@ -146,8 +151,8 @@ export const DetailPage: React.FC<DetailPageProps> = ({
             style={{ width: 105, height: 157 }}
           >
             <img
-              src={media.poster}
-              alt={media.title}
+              src={fullMedia.poster}
+              alt={fullMedia.title}
               className="w-full h-full object-cover"
             />
           </div>
@@ -156,7 +161,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({
           <div className="flex-1 pt-10">
             <div className="flex items-start justify-between gap-2">
               <h1 className="text-white font-black text-lg leading-tight flex-1">
-                {media.titleAr || media.title}
+                {fullMedia.titleAr || fullMedia.title}
               </h1>
             </div>
             {media.originalTitle && (
@@ -167,24 +172,24 @@ export const DetailPage: React.FC<DetailPageProps> = ({
             <div className="flex items-center gap-2 mb-2">
               <div className="flex items-center gap-1">
                 <FiStar size={13} className="text-yellow-400 fill-yellow-400" />
-                <span className="text-yellow-400 font-bold text-sm">{media.rating}</span>
+                <span className="text-yellow-400 font-bold text-sm">{fullMedia.rating}</span>
               </div>
-              <span className="text-gray-600 text-xs">({media.ratingCount.toLocaleString('ar-EG')})</span>
+              <span className="text-gray-600 text-xs">({fullMedia.ratingCount.toLocaleString('ar-EG')})</span>
             </div>
 
             {/* Tags */}
             <div className="flex flex-wrap gap-1.5">
-              <span className={`badge text-white ${TYPE_COLORS[media.type]}`}>{TYPE_LABELS[media.type]}</span>
-              <span className="badge bg-white/10 text-gray-300">{media.year}</span>
-              {media.duration && <span className="badge bg-white/10 text-gray-300">{media.duration} د</span>}
-              {media.quality && <span className="badge bg-yellow-500 text-black">{media.quality}</span>}
-              {media.status && (
+              <span className={`badge text-white ${TYPE_COLORS[fullMedia.type]}`}>{TYPE_LABELS[fullMedia.type]}</span>
+              <span className="badge bg-white/10 text-gray-300">{fullMedia.year}</span>
+              {fullMedia.duration && <span className="badge bg-white/10 text-gray-300">{fullMedia.duration} د</span>}
+              {fullMedia.quality && <span className="badge bg-yellow-500 text-black">{fullMedia.quality}</span>}
+              {fullMedia.status && (
                 <span className={`badge text-white ${
-                  media.status === 'ongoing' ? 'bg-green-600'
-                  : media.status === 'completed' ? 'bg-blue-600'
+                  fullMedia.status === 'ongoing' ? 'bg-green-600'
+                  : fullMedia.status === 'completed' ? 'bg-blue-600'
                   : 'bg-orange-600'
                 }`}>
-                  {media.status === 'ongoing' ? 'مستمر' : media.status === 'completed' ? 'مكتمل' : 'قادم'}
+                  {fullMedia.status === 'ongoing' ? 'مستمر' : fullMedia.status === 'completed' ? 'مكتمل' : 'قادم'}
                 </span>
               )}
             </div>
@@ -193,7 +198,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({
 
         {/* Genre chips */}
         <div className="flex gap-2 flex-wrap mb-4">
-          {media.genres.map(g => (
+          {fullMedia.genres.map(g => (
             <span
               key={g.id}
               className="px-3 py-1 rounded-full text-xs font-semibold border text-gray-300 border-white/10"
@@ -211,28 +216,28 @@ export const DetailPage: React.FC<DetailPageProps> = ({
         >
           <div className="flex items-center gap-1.5">
             <FiEye size={13} className="text-gray-500" />
-            <span className="text-gray-400 text-xs">{formatViews(media.views)}</span>
+            <span className="text-gray-400 text-xs">{formatViews(fullMedia.views)}</span>
           </div>
           <div className="w-px h-4 bg-white/10" />
           <div className="flex items-center gap-1.5">
             <FiCalendar size={13} className="text-gray-500" />
-            <span className="text-gray-400 text-xs">{media.year}</span>
+            <span className="text-gray-400 text-xs">{fullMedia.year}</span>
           </div>
-          {media.language && (
+          {fullMedia.language && (
             <>
               <div className="w-px h-4 bg-white/10" />
               <div className="flex items-center gap-1.5">
                 <FiGlobe size={13} className="text-gray-500" />
-                <span className="text-gray-400 text-xs">{media.language}</span>
+                <span className="text-gray-400 text-xs">{fullMedia.language}</span>
               </div>
             </>
           )}
-          {media.duration && (
+          {fullMedia.duration && (
             <>
               <div className="w-px h-4 bg-white/10" />
               <div className="flex items-center gap-1.5">
                 <FiClock size={13} className="text-gray-500" />
-                <span className="text-gray-400 text-xs">{media.duration} د</span>
+                <span className="text-gray-400 text-xs">{fullMedia.duration} د</span>
               </div>
             </>
           )}
@@ -241,7 +246,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({
         {/* Action buttons */}
         <div className="flex gap-2.5 mb-5">
           <button
-            onClick={() => onPlay(media)}
+            onClick={() => onPlay(fullMedia)}
             className="flex-1 flex items-center justify-center gap-2 text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-transform"
             style={{
               background: 'linear-gradient(135deg, #e50914 0%, #c0070e 100%)',
@@ -304,7 +309,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({
             <div className="mb-5">
               <h3 className="text-white font-bold text-sm mb-2">القصة</h3>
               <p className={`text-gray-300 text-sm leading-relaxed ${!showAllDesc ? 'line-clamp-3' : ''}`}>
-                {media.description}
+                {fullMedia.description}
               </p>
               <button
                 onClick={() => setShowAllDesc(!showAllDesc)}
@@ -371,11 +376,11 @@ export const DetailPage: React.FC<DetailPageProps> = ({
         )}
 
         {/* ===== Tab: Episodes ===== */}
-        {activeTab === 'episodes' && media.seasons && (
+        {activeTab === 'episodes' && fullMedia.seasons && (
           <div>
             {/* Season tabs */}
             <div className="flex gap-2 overflow-x-auto pb-3 mb-4">
-              {media.seasons.map((s, i) => (
+              {fullMedia.seasons.map((s, i) => (
                 <button
                   key={s.id}
                   onClick={() => setSelectedSeason(i)}
@@ -402,7 +407,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({
                 {season.episodes.map((ep: Episode) => (
                   <button
                     key={ep.id}
-                    onClick={() => onPlay(media, ep.id, season.id)}
+                    onClick={() => onPlay(fullMedia, ep.id, season.id)}
                     className="w-full flex items-center gap-3 p-3 rounded-2xl text-right transition-all active:scale-98"
                     style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
                   >

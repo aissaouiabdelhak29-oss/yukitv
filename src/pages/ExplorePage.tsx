@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Media, MediaType } from '../types';
-import { allMedia, genres } from '../data/mockData';
+import { useCatalog } from '../lib/useCatalog';
 import { MediaCard } from '../components/ui/MediaCard';
 import { FiFilter, FiChevronDown } from 'react-icons/fi';
 
@@ -25,6 +25,7 @@ const SORT_OPTIONS = [
 const YEARS = Array.from({ length: 10 }, (_, i) => 2024 - i);
 
 export const ExplorePage: React.FC<ExplorePageProps> = ({ onMediaClick }) => {
+  const { media: allMedia, genres } = useCatalog();
   const [activeType, setActiveType] = useState<'all' | MediaType>('all');
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);

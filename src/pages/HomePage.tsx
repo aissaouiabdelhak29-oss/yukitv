@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Media } from '../types';
-import {
-  movies, series, animeList, featuredMedia,
-  trendingMedia, topRatedMedia, allMedia
-} from '../data/mockData';
+import { useCatalog } from '../lib/useCatalog';
 import { useStore } from '../store/useStore';
 import { SectionRow } from '../components/ui/SectionRow';
 import { FiPlay, FiInfo, FiStar, FiBell } from 'react-icons/fi';
@@ -187,12 +184,13 @@ const AnimeSeasonBanner: React.FC<{ onViewAll: () => void }> = ({ onViewAll }) =
 // ============ Home Page ============
 export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange }) => {
   const { watchProgress } = useStore();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
+  const { media: allMedia, loading } = useCatalog();
+  const movies = allMedia.filter(m => m.type === 'movie');
+  const series = allMedia.filter(m => m.type === 'series');
+  const animeList = allMedia.filter(m => m.type === 'anime');
+  const featuredMedia = allMedia.filter(m => m.featured);
+  const trendingMedia = [...allMedia].sort((a,b) => b.views - a.views).slice(0, 10);
+  const topRatedMedia = [...allMedia].sort((a,b) => b.rating - a.rating).slice(0, 10);
 
   // Continue watching
   const continueWatching = watchProgress

@@ -7,7 +7,7 @@
 
 export const API_CONFIG = {
   // رابط الـ API - يمكن تغييره بسهولة دون إعادة بناء التطبيق
-  BASE_URL: (import.meta as any).env?.VITE_API_URL || 'https://api.yukistream.com/v1',
+  BASE_URL: (import.meta as any).env?.VITE_SUPABASE_URL || 'https://euntkhkadunekmlydyes.supabase.co',
   
   // نسخة الـ API
   VERSION: 'v1',

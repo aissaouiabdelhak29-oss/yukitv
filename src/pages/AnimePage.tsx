@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Media } from '../types';
-import { animeList, genres } from '../data/mockData';
+import { useCatalog } from '../lib/useCatalog';
 import { MediaCard } from '../components/ui/MediaCard';
 import { FiChevronDown } from 'react-icons/fi';
 
@@ -8,7 +8,6 @@ interface AnimePageProps {
   onMediaClick: (media: Media) => void;
 }
 
-const ANIME_GENRES = genres.filter(g => [12, 13, 14, 15, 1, 6, 7, 9, 10].includes(g.id));
 const SEASONS_LIST = ['الكل', 'Winter 2024', 'Spring 2024', 'Summer 2024', 'Fall 2024', 'Fall 2023', 'Winter 2023'];
 const STATUS_LIST = [
   { id: 'all', label: 'الكل' },
@@ -17,6 +16,9 @@ const STATUS_LIST = [
 ];
 
 export const AnimePage: React.FC<AnimePageProps> = ({ onMediaClick }) => {
+  const { media, genres } = useCatalog();
+  const animeList = media.filter(m => m.type === 'anime');
+  const ANIME_GENRES = genres.filter(g => [12, 13, 14, 15, 1, 6, 7, 9, 10].includes(g.id));
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [selectedSeason, setSelectedSeason] = useState('الكل');
   const [selectedStatus, setSelectedStatus] = useState('all');
