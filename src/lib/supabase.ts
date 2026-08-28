@@ -1,10 +1,10 @@
 import type { Episode, Genre, Media, Server } from '../types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '');
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
 
-const SUPABASE_STORAGE_URL =
-  'https://euntkhkadunekmlydyes.supabase.co/storage/v1/object/public/posters/';
+const SUPABASE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
 type DbContent = {
   id: number;
@@ -57,52 +57,90 @@ const genreArabic: Record<string, string> = {
   mecha: 'ميكا',
 };
 
-/**
- * تحويل اسم الصورة إلى رابط Supabase Storage.
+const fallbackPoster = (id: number) =>
+  `https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=600&fit=crop&sig=${id}`;
+
+const fallbackBackdrop = (id: number) =>
+  `https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1280&h=720&fit=crop&sig=${id}`;
+
+/*
+ * صور الـPoster مرفوعة في Supabase Storage داخل bucket: posters
+ */
+const IMAGE_BASE_URL =
+  'https://euntkhkadunekmlydyes.supabase.co/storage/v1/object/public/posters/';
+
+/*
+ * يحول أي قيمة للصورة إلى اسم الملف فقط ثم يبني رابط Supabase.
  *
  * أمثلة:
+ * 6a18cad3173d1.jpg
+ * /uploads/posters/6a18cad3173d1.jpg
+ * https://kyou.online/uploads/posters/6a18cad3173d1.jpg
  *
- * poster = "6a18cad3173d1.jpg"
- * =>
+ * كلها تصبح:
  * https://euntkhkadunekmlydyes.supabase.co/storage/v1/object/public/posters/6a18cad3173d1.jpg
- *
- * وإذا كانت القيمة أصلًا رابطًا كاملًا، نستعملها كما هي.
  */
-function imageUrl(value: string | null | undefined): string | undefined {
-  if (!value) {
-    return undefined;
+function imageUrl(
+  value: string | null | undefined,
+  fallback: string
+): string {
+  if (!value) return fallback;
+
+  let filename = value.trim();
+
+  if (!filename) return fallback;
+
+  // إزالة query/hash
+  filename = filename
+    .split('?')[0]
+    .split('#')[0];
+
+  // نأخذ اسم الملف فقط من أي رابط أو مسار
+  filename = filename.split('/').pop() || '';
+
+  filename = filename.trim();
+
+  if (!filename) return fallback;
+
+  // لا نحاول استخدام أسماء صور الـfallback القديمة
+  if (
+    filename === 'default-poster.jpg' ||
+    filename === 'default-backdrop.jpg' ||
+    filename === 'default.jpg'
+  ) {
+    return fallback;
   }
 
-  const clean = value.trim();
-
-  if (!clean) {
-    return undefined;
-  }
-
-  // إذا كانت القيمة رابطًا كاملًا
-  if (/^https?:\/\//i.test(clean)) {
-    return clean;
-  }
-
-  // إزالة / من بداية اسم الملف
-  const fileName = clean.replace(/^\/+/, '');
-
-  return `${SUPABASE_STORAGE_URL}${fileName}`;
+  return `${IMAGE_BASE_URL}${encodeURIComponent(filename)}`;
 }
 
-async function rest<T>(table: string, query: string): Promise<T> {
-  const url = `${SUPABASE_URL}/rest/v1/${table}?${query}`;
+async function rest<T>(
+  table: string,
+  query: string
+): Promise<T> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error(
+      'Supabase environment variables are missing.'
+    );
+  }
+
+  const url =
+    `${SUPABASE_URL}/rest/v1/${table}?${query}`;
 
   const res = await fetch(url, {
+    method: 'GET',
     headers: {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
+      Accept: 'application/json',
     },
   });
 
   if (!res.ok) {
+    const text = await res.text();
+
     throw new Error(
-      `Supabase ${table}: ${res.status} ${await res.text()}`
+      `Supabase ${table}: ${res.status} ${text}`
     );
   }
 
@@ -114,30 +152,52 @@ function mapMedia(
   genres: Map<number, DbGenre>,
   categories: Map<number, DbCategory>
 ): Media {
-  const category = row.category_id
-    ? categories.get(row.category_id)
-    : undefined;
+  const category =
+    row.category_id != null
+      ? categories.get(row.category_id)
+      : undefined;
 
-  const dbGenre = row.genre_id
-    ? genres.get(row.genre_id)
-    : undefined;
+  const dbGenre =
+    row.genre_id != null
+      ? genres.get(row.genre_id)
+      : undefined;
 
   const isAnime =
     category?.slug === 'anime' ||
-    category?.name.includes('أنمي') ||
-    category?.name.toLowerCase() === 'anime';
+    category?.name?.includes('أنمي') ||
+    category?.name?.toLowerCase() === 'anime';
 
-  const type = isAnime ? 'anime' : row.type;
+  const type = isAnime
+    ? 'anime'
+    : row.type;
 
   const genre: Genre[] = dbGenre
     ? [
         {
           id: dbGenre.id,
           name: dbGenre.name,
-          nameAr: genreArabic[dbGenre.slug] || dbGenre.name,
+          nameAr:
+            genreArabic[dbGenre.slug] ||
+            dbGenre.name,
         },
       ]
     : [];
+
+  const posterUrl =
+    imageUrl(
+      row.poster,
+      fallbackPoster(row.id)
+    );
+
+  /*
+   * إذا لم يوجد backdrop، نستخدم الـposter.
+   * وإذا كان backdrop موجودًا كاسم ملف، سيُبنى له رابط Supabase أيضًا.
+   */
+  const backdropUrl =
+    imageUrl(
+      row.backdrop,
+      posterUrl || fallbackBackdrop(row.id)
+    );
 
   return {
     id: row.id,
@@ -148,24 +208,26 @@ function mapMedia(
     originalTitle: row.title,
 
     description:
-      row.description || 'لا يوجد وصف متاح لهذا المحتوى.',
+      row.description ||
+      'لا يوجد وصف متاح لهذا المحتوى.',
 
-    /*
-     * الصور الآن من Supabase Storage مباشرة
-     */
-    poster: imageUrl(row.poster),
-    backdrop: imageUrl(row.backdrop),
+    poster: posterUrl,
+    backdrop: backdropUrl,
 
     year: row.year || 0,
 
-    rating: Number(row.rating || 0),
+    rating:
+      Number(row.rating || 0),
+
     ratingCount: 0,
 
-    views: row.views || 0,
+    views:
+      Number(row.views || 0),
 
     genres: genre,
 
-    duration: row.duration || undefined,
+    duration:
+      row.duration || undefined,
 
     quality: (
       row.quality === '4K'
@@ -179,11 +241,16 @@ function mapMedia(
 
     language: undefined,
 
-    trailer: row.trailer || undefined,
+    trailer:
+      row.trailer || undefined,
 
-    featured: Boolean(Number(row.featured || 0)),
+    featured:
+      Boolean(
+        Number(row.featured || 0)
+      ),
 
-    trending: (row.views || 0) > 100,
+    trending:
+      Number(row.views || 0) > 100,
 
     status:
       row.status === 'pending'
@@ -203,14 +270,22 @@ export async function getCatalog(
   media: Media[];
   genres: Genre[];
 }> {
-  if (!force && mediaCache && genresCache) {
+  if (
+    !force &&
+    mediaCache &&
+    genresCache
+  ) {
     return {
       media: mediaCache,
       genres: genresCache,
     };
   }
 
-  const [content, dbGenres, dbCategories] = await Promise.all([
+  const [
+    content,
+    dbGenres,
+    dbCategories,
+  ] = await Promise.all([
     rest<DbContent[]>(
       'content',
       'select=*&status=eq.published&order=created_at.desc'
@@ -227,23 +302,40 @@ export async function getCatalog(
     ),
   ]);
 
-  const genreMap = new Map(
-    dbGenres.map((g) => [g.id, g])
-  );
+  const genreMap =
+    new Map(
+      dbGenres.map(
+        (g) => [g.id, g]
+      )
+    );
 
-  const categoryMap = new Map(
-    dbCategories.map((c) => [c.id, c])
-  );
+  const categoryMap =
+    new Map(
+      dbCategories.map(
+        (c) => [c.id, c]
+      )
+    );
 
-  mediaCache = content.map((row) =>
-    mapMedia(row, genreMap, categoryMap)
-  );
+  mediaCache =
+    content.map(
+      (row) =>
+        mapMedia(
+          row,
+          genreMap,
+          categoryMap
+        )
+    );
 
-  genresCache = dbGenres.map((g) => ({
-    id: g.id,
-    name: g.name,
-    nameAr: genreArabic[g.slug] || g.name,
-  }));
+  genresCache =
+    dbGenres.map(
+      (g) => ({
+        id: g.id,
+        name: g.name,
+        nameAr:
+          genreArabic[g.slug] ||
+          g.name,
+      })
+    );
 
   return {
     media: mediaCache,
@@ -254,7 +346,10 @@ export async function getCatalog(
 export async function getMediaDetails(
   media: Media
 ): Promise<Media> {
-  const [servers, episodes] = await Promise.all([
+  const [
+    servers,
+    episodes,
+  ] = await Promise.all([
     rest<any[]>(
       'video_servers',
       `select=*&content_id=eq.${media.id}&order=is_default.desc,id.asc`
@@ -268,70 +363,102 @@ export async function getMediaDetails(
         ),
   ]);
 
-  const episodeServers = await Promise.all(
-    episodes.map((ep) =>
-      rest<any[]>(
-        'episode_servers',
-        `select=*&episode_id=eq.${ep.id}&order=is_default.desc,id.asc`
+  const episodeServers =
+    await Promise.all(
+      episodes.map(
+        (ep) =>
+          rest<any[]>(
+            'episode_servers',
+            `select=*&episode_id=eq.${ep.id}&order=is_default.desc,id.asc`
+          )
       )
-    )
-  );
+    );
 
-  const toServer = (s: any): Server => ({
+  const toServer = (
+    s: any
+  ): Server => ({
     id: String(s.id),
-    name: s.server_name,
-    url: s.embed_url,
-    quality: (s.quality || '1080p') as any,
+    name:
+      s.server_name || 'سيرفر',
+    url:
+      s.embed_url || s.url || '',
+    quality:
+      (s.quality || '1080p') as any,
   });
 
-  const grouped = new Map<number, Episode[]>();
+  const grouped =
+    new Map<number, Episode[]>();
 
-  episodes.forEach((ep, i) => {
-    const season = ep.season || 1;
+  episodes.forEach(
+    (ep, i) => {
+      const season =
+        ep.season || 1;
 
-    const item: Episode = {
-      id: ep.id,
+      const item: Episode = {
+        id: ep.id,
 
-      number: ep.episode_number,
+        number:
+          ep.episode_number,
 
-      title: ep.title,
-      titleAr: ep.title,
+        title:
+          ep.title ||
+          `الحلقة ${ep.episode_number}`,
 
-      description: ep.description || undefined,
+        titleAr:
+          ep.title ||
+          `الحلقة ${ep.episode_number}`,
 
-      /*
-       * صورة الحلقة من Supabase Storage
-       */
-      thumbnail:
-        imageUrl(ep.poster) || media.backdrop,
+        description:
+          ep.description ||
+          undefined,
 
-      duration: ep.duration || 0,
+        thumbnail:
+          imageUrl(
+            ep.poster,
+            media.backdrop
+          ),
 
-      servers: episodeServers[i].map(toServer),
-    };
+        duration:
+          ep.duration || 0,
 
-    grouped.set(season, [
-      ...(grouped.get(season) || []),
-      item,
-    ]);
-  });
+        servers:
+          episodeServers[i].map(
+            toServer
+          ),
+      };
+
+      grouped.set(
+        season,
+        [
+          ...(grouped.get(season) || []),
+          item,
+        ]
+      );
+    }
+  );
 
   return {
     ...media,
 
-    servers: servers.map(toServer),
+    servers:
+      servers.map(toServer),
 
-    seasons: [...grouped.entries()].map(
-      ([number, eps]) => ({
-        id: number,
-        number,
+    seasons:
+      [...grouped.entries()].map(
+        ([number, eps]) => ({
+          id: number,
+          number,
 
-        title: `الموسم ${number}`,
-        titleAr: `الموسم ${number}`,
+          title:
+            `الموسم ${number}`,
 
-        episodes: eps,
-      })
-    ),
+          titleAr:
+            `الموسم ${number}`,
+
+          episodes:
+            eps,
+        })
+      ),
   };
 }
 
@@ -339,19 +466,30 @@ export async function searchCatalog(
   query: string,
   type: string = 'all'
 ): Promise<Media[]> {
-  const { media } = await getCatalog();
+  const { media } =
+    await getCatalog();
 
-  const q = query.trim().toLowerCase();
+  const q =
+    query
+      .trim()
+      .toLowerCase();
 
   if (!q) {
-    return media;
+    return media.filter(
+      (m) =>
+        type === 'all' ||
+        m.type === type
+    );
   }
 
   return media.filter(
     (m) =>
-      (type === 'all' || m.type === type) &&
+      (type === 'all' ||
+        m.type === type) &&
       (
-        m.title.toLowerCase().includes(q) ||
+        m.title
+          .toLowerCase()
+          .includes(q) ||
 
         (m.description || '')
           .toLowerCase()
@@ -359,7 +497,9 @@ export async function searchCatalog(
 
         m.genres.some(
           (g) =>
-            g.name.toLowerCase().includes(q) ||
+            g.name
+              .toLowerCase()
+              .includes(q) ||
             g.nameAr.includes(query)
         )
       )
