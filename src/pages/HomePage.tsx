@@ -3,6 +3,7 @@ import { Media } from '../types';
 import { useCatalog } from '../lib/useCatalog';
 import { useStore } from '../store/useStore';
 import { SectionRow } from '../components/ui/SectionRow';
+import { allMedia as mockAllMedia } from '../data/mockData';
 import { FiPlay, FiInfo, FiStar, FiBell } from 'react-icons/fi';
 
 interface HomePageProps {
@@ -20,7 +21,6 @@ const HeroBanner: React.FC<{
 
   return (
     <div className="relative w-full overflow-hidden" style={{ height: '65vw', maxHeight: 360 }}>
-      {/* Image */}
       {!loaded && <div className="absolute inset-0 skeleton" />}
       <img
         src={media.backdrop}
@@ -28,14 +28,10 @@ const HeroBanner: React.FC<{
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setLoaded(true)}
       />
-
-      {/* Cinematic overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
 
-      {/* Top bar */}
       <div className="absolute top-0 right-0 left-0 flex items-center justify-between p-4 pt-5">
-        {/* YUKI logo */}
         <div
           className="text-3xl font-black tracking-widest"
           style={{
@@ -52,9 +48,7 @@ const HeroBanner: React.FC<{
         </button>
       </div>
 
-      {/* Content */}
       <div className="absolute bottom-0 right-0 left-0 p-4 pb-5">
-        {/* Type + Genre badges */}
         <div className="flex items-center gap-2 mb-2">
           <span className={`badge ${media.type === 'movie' ? 'bg-blue-600' : media.type === 'anime' ? 'bg-pink-600' : 'bg-purple-600'} text-white`}>
             {media.type === 'movie' ? 'فيلم' : media.type === 'anime' ? 'أنمي' : 'مسلسل'}
@@ -64,12 +58,10 @@ const HeroBanner: React.FC<{
           ))}
         </div>
 
-        {/* Title */}
         <h1 className="text-white font-black text-2xl leading-tight mb-2 drop-shadow-lg">
           {media.titleAr || media.title}
         </h1>
 
-        {/* Meta */}
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center gap-1">
             <FiStar size={12} className="text-yellow-400 fill-yellow-400" />
@@ -84,12 +76,10 @@ const HeroBanner: React.FC<{
           )}
         </div>
 
-        {/* Description */}
         <p className="text-gray-300 text-xs leading-relaxed line-clamp-2 mb-4 max-w-xs">
           {media.description}
         </p>
 
-        {/* Buttons */}
         <div className="flex gap-2.5">
           <button
             onClick={onPlay}
@@ -137,7 +127,6 @@ const FeaturedCarousel: React.FC<{
         onPlay={() => onPlay(items[current])}
         onDetails={() => onDetails(items[current])}
       />
-      {/* Indicator dots */}
       <div className="absolute bottom-[70px] right-0 left-0 flex justify-center gap-1.5">
         {items.map((_, i) => (
           <button
@@ -184,15 +173,18 @@ const AnimeSeasonBanner: React.FC<{ onViewAll: () => void }> = ({ onViewAll }) =
 // ============ Home Page ============
 export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange }) => {
   const { watchProgress } = useStore();
-  const { media: allMedia, loading } = useCatalog();
+  const { media: dbMedia, loading, error } = useCatalog();
+
+  // ✅ fallback: لو قاعدة البيانات فاضية أو فيها خطأ، استخدم mockData
+  const allMedia = dbMedia.length > 0 ? dbMedia : mockAllMedia;
+
   const movies = allMedia.filter(m => m.type === 'movie');
   const series = allMedia.filter(m => m.type === 'series');
   const animeList = allMedia.filter(m => m.type === 'anime');
   const featuredMedia = allMedia.filter(m => m.featured);
-  const trendingMedia = [...allMedia].sort((a,b) => b.views - a.views).slice(0, 10);
-  const topRatedMedia = [...allMedia].sort((a,b) => b.rating - a.rating).slice(0, 10);
+  const trendingMedia = [...allMedia].sort((a, b) => b.views - a.views).slice(0, 10);
+  const topRatedMedia = [...allMedia].sort((a, b) => b.rating - a.rating).slice(0, 10);
 
-  // Continue watching
   const continueWatching = watchProgress
     .filter(p => p.progress > 0 && p.progress < 95)
     .map(p => allMedia.find(m => m.id === p.mediaId))
@@ -201,7 +193,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
   const progressMap: Record<number, number> = {};
   watchProgress.forEach(p => { progressMap[p.mediaId] = p.progress; });
 
-  // Suggestions based on genres watched
   const watchedGenreIds = new Set(
     continueWatching.flatMap(m => m.genres.map(g => g.id))
   );
@@ -212,7 +203,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
         .slice(0, 10)
     : topRatedMedia.slice(0, 10);
 
-  if (loading) {
+  if (loading && dbMedia.length === 0) {
     return (
       <div className="bg-black min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -250,7 +241,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
 
   return (
     <div className="bg-black min-h-screen pb-24">
-      {/* Hero Carousel */}
+      {error && dbMedia.length === 0 && (
+        <div className="mx-4 mt-4 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
+          <p className="text-orange-400 text-xs text-center">
+            ⚠️ تعذر الاتصال بقاعدة البيانات — يتم عرض البيانات الافتراضية
+          </p>
+        </div>
+      )}
+
       <FeaturedCarousel
         items={featured}
         onPlay={onMediaClick}
@@ -258,7 +256,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
       />
 
       <div className="mt-5">
-        {/* Continue Watching */}
         {continueWatching.length > 0 && (
           <SectionRow
             title="متابعة المشاهدة"
@@ -270,7 +267,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           />
         )}
 
-        {/* Trending */}
         <SectionRow
           title="الأكثر مشاهدة الآن"
           icon="🔥"
@@ -281,7 +277,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           onViewAll={() => onTabChange('explore')}
         />
 
-        {/* Latest Movies */}
         <SectionRow
           title="أحدث الأفلام"
           icon="🎬"
@@ -291,7 +286,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           onViewAll={() => onTabChange('explore')}
         />
 
-        {/* Latest Series */}
         <SectionRow
           title="أحدث المسلسلات"
           icon="📺"
@@ -301,10 +295,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           onViewAll={() => onTabChange('explore')}
         />
 
-        {/* Anime Season Banner */}
         <AnimeSeasonBanner onViewAll={() => onTabChange('explore')} />
 
-        {/* Latest Anime */}
         <SectionRow
           title="أنمي الموسم"
           icon="🎌"
@@ -314,7 +306,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           onViewAll={() => onTabChange('explore')}
         />
 
-        {/* Top Rated */}
         <SectionRow
           title="الأعلى تقييماً"
           icon="⭐"
@@ -325,7 +316,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           onViewAll={() => onTabChange('explore')}
         />
 
-        {/* Suggested */}
         <SectionRow
           title="مقترح لك"
           icon="✨"
@@ -335,7 +325,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           showType
         />
 
-        {/* Similar Based on Watching */}
         <SectionRow
           title="قد يعجبك أيضاً"
           icon="🎯"
@@ -345,7 +334,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onMediaClick, onTabChange })
           showType
         />
 
-        {/* New additions */}
         <SectionRow
           title="جديد على YUKI"
           icon="🆕"

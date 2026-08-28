@@ -12,10 +12,13 @@ export function useCatalog() {
     let alive = true;
     getCatalog().then(data => {
       if (!alive) return;
-      setMedia(data.media); setGenres(data.genres); setError(null);
+      setMedia(data.media);
+      setGenres(data.genres);
+      setError(null);
     }).catch(err => {
       if (!alive) return;
-      console.error(err); setError(err instanceof Error ? err.message : 'تعذر الاتصال بقاعدة البيانات');
+      console.error('useCatalog error:', err);
+      setError(err instanceof Error ? err.message : 'تعذر الاتصال بقاعدة البيانات');
     }).finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, []);

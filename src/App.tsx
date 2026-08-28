@@ -32,7 +32,6 @@ const SplashScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50 overflow-hidden">
-      {/* Background glow */}
       <div
         className="absolute inset-0 transition-opacity duration-700"
         style={{
@@ -40,8 +39,6 @@ const SplashScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           opacity: phase >= 1 ? 1 : 0,
         }}
       />
-
-      {/* Logo */}
       <div
         className="relative mb-3 transition-all duration-700"
         style={{
@@ -60,14 +57,11 @@ const SplashScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
         >
           YUKI
         </span>
-        {/* Underline */}
         <div
           className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-red-600 via-red-400 to-red-600 transition-all duration-700"
           style={{ width: phase >= 2 ? '100%' : '0%' }}
         />
       </div>
-
-      {/* Tagline */}
       <div
         className="transition-all duration-500"
         style={{
@@ -79,8 +73,6 @@ const SplashScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           أفلام • مسلسلات • أنمي
         </p>
       </div>
-
-      {/* Loading bar */}
       <div
         className="absolute bottom-16 left-8 right-8 transition-all duration-500"
         style={{ opacity: phase >= 3 ? 1 : 0 }}
@@ -95,8 +87,6 @@ const SplashScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           />
         </div>
       </div>
-
-      {/* Version */}
       <div className="absolute bottom-8 text-gray-700 text-xs">
         v1.0.0
       </div>
@@ -112,7 +102,6 @@ const NoInternetBanner: React.FC<{ isOnline: boolean }> = ({ isOnline }) => {
     if (!isOnline) {
       setVisible(true);
     } else {
-      // Show "back online" for 3s then hide
       setVisible(true);
       const t = setTimeout(() => setVisible(false), 3000);
       return () => clearTimeout(t);
@@ -144,7 +133,6 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [viewHistory, setViewHistory] = useState<AppView[]>([]);
 
-  // Network detection
   useEffect(() => {
     const up = () => setIsOnline(true);
     const down = () => setIsOnline(false);
@@ -171,7 +159,6 @@ export default function App() {
     }
   }, [viewHistory]);
 
-  // Browser back button
   useEffect(() => {
     const handlePop = (e: PopStateEvent) => {
       e.preventDefault();
@@ -204,7 +191,6 @@ export default function App() {
 
   const splashDone = useCallback(() => setShowSplash(false), []);
 
-  // ---- Render ----
   if (showSplash) {
     return (
       <>
@@ -225,7 +211,6 @@ export default function App() {
       <Toaster position="top-center" toastOptions={toastOptions} />
       <NoInternetBanner isOnline={isOnline} />
 
-      {/* ===== Player ===== */}
       {view.type === 'player' && (
         <div className="min-h-screen">
           <PlayerPage
@@ -237,7 +222,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== Detail ===== */}
       {view.type === 'detail' && (
         <div className="min-h-screen overflow-y-auto pb-24">
           <DetailPage
@@ -249,7 +233,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== Tabs ===== */}
       {view.type === 'tab' && (
         <div className="min-h-screen overflow-y-auto">
           {activeTab === 'home' && (
@@ -276,7 +259,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Bottom Nav - hidden in player */}
       {view.type !== 'player' && (
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
       )}
@@ -284,7 +266,6 @@ export default function App() {
   );
 }
 
-// Toast configuration
 const toastOptions = {
   style: {
     background: '#1a1a1a',
