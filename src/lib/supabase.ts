@@ -24,7 +24,7 @@ const fallbackPoster = (id: number) => `https://images.unsplash.com/photo-148959
 const fallbackBackdrop = (id: number) => `https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1280&h=720&fit=crop&sig=${id}`;
 
 // الصور مستضافة على الاستضافة القديمة، ماشي فـ public/poster المحلي
-const IMAGE_BASE_URL = 'https://kyou.online/uploads/posters/';
+const IMAGE_BASE_URL = 'https://euntkhkadunekmlydyes.supabase.co/storage/v1/object/public/posters/';
 
 function imageUrl(value: string | null | undefined, fallback: string) {
   if (!value || value === 'default-poster.jpg' || value === 'default-backdrop.jpg') return fallback;
