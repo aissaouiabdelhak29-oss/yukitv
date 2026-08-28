@@ -23,10 +23,18 @@ const genreArabic: Record<string, string> = {
 const fallbackPoster = (id: number) => `https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=600&fit=crop&sig=${id}`;
 const fallbackBackdrop = (id: number) => `https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1280&h=720&fit=crop&sig=${id}`;
 
-function imageUrl(poster: string | null | undefined): string {
-  if (!poster) return '';
-  if (/^(https?:\/\/|data:|blob:)/i.test(poster)) return poster;
-  return `/poster/${poster.replace(/^\/+/, '')}`;
+// الصور مستضافة على الاستضافة القديمة، ماشي فـ public/poster المحلي
+const IMAGE_BASE_URL = 'https://kyou.online/uploads/posters/';
+
+function imageUrl(value: string | null | undefined, fallback: string) {
+  if (!value || value === 'default-poster.jpg' || value === 'default-backdrop.jpg') return fallback;
+
+  // رابط كامل جاهز (مثلاً صورة مرفوعة Supabase Storage أو CDN آخر) → نستعملوه كيفما هو
+  if (/^https?:\/\//i.test(value)) return value;
+
+  // غير اسم الملف مخزّن فالقاعدة (مثال: 6a18cad3173d1.jpg) → نبنيو الرابط من kyou.online
+  const clean = value.replace(/^\/+/, '');
+  return `${IMAGE_BASE_URL}${clean}`;
 }
 
 async function rest<T>(table: string, query: string): Promise<T> {
